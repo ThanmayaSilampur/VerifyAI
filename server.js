@@ -81,5 +81,6 @@ app.post("/api/analyze", async (req, res) => {
 });
 
 app.listen(port, () => {
+  console.log("NEW SERVER VERSION LOADED");
   console.log(`http://localhost:${port}`);
 });
