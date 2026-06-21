@@ -96,52 +96,79 @@ async function analyzeResponse(text, model) {
   const prompt = buildPrompt(text, model);
 
   const response = await fetch("/api/analyze", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    prompt
-  })
-});
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      prompt
+    })
+  });
 
   if (!response.ok) {
     const errText = await response.text();
-    console.error("Gemini API error:", errText);
-    throw new Error(`Gemini API request failed (status ${response.status})`);
+    console.error("Server error:", errText);
+    throw new Error(`Server error (status ${response.status}): ${errText}`);
   }
 
   const data = await response.json();
-  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  
+  // Log the full response for debugging
+  console.log(" Raw Gemini response:", JSON.stringify(data, null, 2));
 
-  if (!rawText) {
-    throw new Error("Gemini returned an empty response.");
+  // Check for API errors from the server
+  if (data.error) {
+    throw new Error(data.error);
   }
 
-  // Clean up just in case the model wraps it in ```json fences
-  const cleaned = rawText.replace(/```json|```/g, "").trim();
-
-  let parsed;
+  // Extract the text from Gemini's response structure
+  let rawText;
   try {
-    parsed = JSON.parse(cleaned);
-  } catch (e) {
-    console.error("Failed to parse Gemini JSON:", cleaned);
-    throw new Error("Could not parse the analysis. Please try again.");
-  }
+    rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!rawText) {
+      console.error("❌ Could not find text in response:", JSON.stringify(data, null, 2));
+      throw new Error("Gemini returned empty response. Try again or check your API key.");
+    }
 
-  // Fill in safe defaults in case any field is missing
-  return {
-    trustScore: parsed.trustScore ?? 0,
-    hallucinationRisk: parsed.hallucinationRisk ?? "Unknown",
-    contentType: parsed.contentType ?? "Unknown",
-    whyGenerated: parsed.whyGenerated ?? "",
-    assumptions: parsed.assumptions ?? [],
-    trustedParts: parsed.trustedParts ?? [],
-    verifyParts: parsed.verifyParts ?? [],
-    missingContext: parsed.missingContext ?? [],
-    biases: parsed.biases ?? [],
-    alternativeViewpoints: parsed.alternativeViewpoints ?? [],
-  };
+    console.log(" Raw text from Gemini:", rawText);
+
+    // Clean up just in case the model wraps it in ```json fences
+    const cleaned = rawText.replace(/```json|```/g, "").trim();
+    console.log("🧹 Cleaned text:", cleaned);
+
+    // Parse the JSON
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (e) {
+      console.error("❌ Failed to parse JSON:", cleaned);
+      console.error("Parse error:", e.message);
+      throw new Error("Could not parse the analysis. Response might be invalid JSON.");
+    }
+
+    // Validate the response has required fields
+    if (!parsed.trustScore && parsed.trustScore !== 0) {
+      throw new Error("Response missing trustScore field");
+    }
+
+    // Fill in safe defaults for any missing fields
+    return {
+      trustScore: parsed.trustScore ?? 0,
+      hallucinationRisk: parsed.hallucinationRisk ?? "Unknown",
+      contentType: parsed.contentType ?? "Unknown",
+      whyGenerated: parsed.whyGenerated ?? "Unable to generate explanation",
+      assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions : [],
+      trustedParts: Array.isArray(parsed.trustedParts) ? parsed.trustedParts : [],
+      verifyParts: Array.isArray(parsed.verifyParts) ? parsed.verifyParts : [],
+      missingContext: Array.isArray(parsed.missingContext) ? parsed.missingContext : [],
+      biases: Array.isArray(parsed.biases) ? parsed.biases : [],
+      alternativeViewpoints: Array.isArray(parsed.alternativeViewpoints) ? parsed.alternativeViewpoints : [],
+    };
+  } catch (err) {
+    console.error("❌ Error processing response:", err);
+    throw err;
+  }
 }
 
 // ===== Button click handler =====
@@ -158,12 +185,14 @@ analyzeBtn.addEventListener("click", async () => {
 
   try {
     const data = await analyzeResponse(text, model);
+    console.log("Analysis complete:", data);
     renderResults(data);
   } catch (err) {
-    console.error(err);
+    console.error("❌ Analysis failed:", err);
     showError(err.message || "Something went wrong while analyzing. Please try again.");
   } finally {
     hideLoading();
   }
 });
+
 lucide.createIcons();
