@@ -19,6 +19,8 @@
   },
   "homepage": "https://github.com/ThanmayaSilampur/VerifyAI#readme",
   "dependencies": {
+    "@google/genai": "^2.9.0",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1"
   }
 }

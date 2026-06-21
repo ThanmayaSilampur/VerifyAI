@@ -95,20 +95,15 @@ ${text}
 async function analyzeResponse(text, model) {
   const prompt = buildPrompt(text, model);
 
-  const response = await fetch(
-    `${CONFIG.GEMINI_ENDPOINT()}?key=${CONFIG.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: "application/json",
-        },
-      }),
-    }
-  );
+  const response = await fetch("/api/analyze", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    prompt
+  })
+});
 
   if (!response.ok) {
     const errText = await response.text();
