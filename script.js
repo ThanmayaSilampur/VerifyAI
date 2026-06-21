@@ -171,3 +171,4 @@ analyzeBtn.addEventListener("click", async () => {
     hideLoading();
   }
 });
+lucide.createIcons();
