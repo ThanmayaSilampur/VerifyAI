@@ -16,7 +16,7 @@ app.post("/api/analyze", async (req, res) => {
     console.log("Key starts with:", process.env.GEMINI_API_KEY?.substring(0, 6));
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -38,8 +38,14 @@ app.post("/api/analyze", async (req, res) => {
 
     const data = await response.json();
 
-    // Log the full response for debugging
-    console.log("📤 Gemini response received:", JSON.stringify(data, null, 2));
+if (response.status === 503) {
+  return res.status(503).json({
+    error: "Gemini is currently overloaded. Please try again in a few seconds."
+  });
+}
+
+// Log the full response for debugging
+console.log(" Gemini response received:", JSON.stringify(data, null, 2));
 
     // Check for API errors
     if (data.error) {
